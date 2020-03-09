@@ -27,6 +27,12 @@ void clearOutput(int num_lines);
 uint32_t currentTime();
 std::string processStateToString(Process::State state);
 
+/* OS Scheduler Project
+ * Nicholas Pumper and Yuki
+ * 
+ * 7 March 2020
+ */
+
 int main(int argc, char **argv)
 {
     // ensure user entered a command line parameter for configuration file name
@@ -63,7 +69,7 @@ int main(int argc, char **argv)
         {
             shared_data->ready_queue.push_back(p);
         }
-    }
+    } // for
 
     // free configuration data from memory
     deleteConfig(config);
@@ -74,12 +80,16 @@ int main(int argc, char **argv)
     {
         schedule_threads[i] = std::thread(coreRunProcesses, i, shared_data);
     }
+    
 	std::cout <<"Time: "<<start<<std::endl;
+    
     // main thread work goes here:
+
     int num_lines = 0;
 	int temp =0;
     bool all_terminated = true;
-    while (!(shared_data->all_terminated) && temp<1)
+
+    while (!(shared_data->all_terminated) && temp <1)
     {
         // clear output from previous iteration
         clearOutput(num_lines);
@@ -87,20 +97,18 @@ int main(int argc, char **argv)
         // start new processes at their appropriate start time
     	for (i = 0; i < num_cores; i++)
     	{
-		std::cout<< "index: "<<i << std::endl;
+		    std::cout<< "index: "<<i << std::endl;
         	schedule_threads[i].join();
-		
     	}
 
-	//put ready processes to ready queue.
+	    //put ready processes to ready queue.
     	for (i = 0; i < processes.size(); i++)
     	{
-		//has to set state whhether it is ready.
-
-		if( processes[i]->getState() != Process::State::Ready ){
-		//std::cout << processes[i]->getPid() << ": "<< processes[i]->getStartTime() <<": "<<start<< "\n";
-			shared_data->ready_queue.push_back( processes[i] );
-		}
+		    //has to set state whether it is ready.
+            if( processes[i]->getState() != Process::State::Ready ){
+                //std::cout << processes[i]->getPid() << ": "<< processes[i]->getStartTime() <<": "<<start<< "\n";
+                shared_data->ready_queue.push_back( processes[i] );
+            }
 
     	}
 
@@ -108,35 +116,39 @@ int main(int argc, char **argv)
 
 
         // sort the ready queue (if needed - based on scheduling algorithm)
-	if( shared_data->algorithm == ScheduleAlgorithm::SJF )
-	{ 
-		shared_data->ready_queue.sort( SjfComparator() ); 
-	}
-	if( shared_data->algorithm == ScheduleAlgorithm::PP )
-	{ 
-		shared_data->ready_queue.sort( PpComparator() ); 
-	}
+        if( shared_data->algorithm == ScheduleAlgorithm::SJF )
+        { 
+            shared_data->ready_queue.sort( SjfComparator() ); 
+        }
+        if( shared_data->algorithm == ScheduleAlgorithm::PP )
+        { 
+            shared_data->ready_queue.sort( PpComparator() ); 
+        }
+
         // determine if all processes are in the terminated state
-	all_terminated = true;
-    	for (i = 0; i < processes.size(); i++)
-    	{
-		//if at least one is not terminated, not all are not terminated.
-		if( processes[i]->getState() != Process::State::Terminated )
-		{ 
-			all_terminated = false; 
-		}
-    	}
-	if( all_terminated )
-	{
-		shared_data->all_terminated = true;
-	}
+        all_terminated = true;
+        for (i = 0; i < processes.size(); i++)
+        {
+            //if at least one is not terminated, not all are not terminated.
+            if( processes[i]->getState() != Process::State::Terminated )
+            { 
+                all_terminated = false; 
+            }
+        }
+
+        if( all_terminated )
+        {
+            shared_data->all_terminated = true;
+        }
+
         // output process status table
         num_lines = printProcessOutput(processes, shared_data->mutex);
 
         // sleep 1/60th of a second
         usleep(16667);
-	temp++;
+        temp++;
     }
+
     // wait for threads to finish
     for (i = 0; i < num_cores; i++)
     {
@@ -173,13 +185,18 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
     //  * Repeat until all processes in terminated state
 
     Process *p;
- 	p = shared_data->ready_queue.front();
+ 	p = shared_data->ready_queue.front(); // get process at front of ready queue
  	p->setCpuCore(core_id);
 
   	shared_data->ready_queue.pop_front();
 
   	usleep( p->getStartTime() );
  	bool done = false;
+
+    // simulate one of the processese until one of the following:
+    //     - CPU burst time has elapsed
+    //     - RR time slice has elapsed
+    //     - Process preempted by higher priority process
  	std::unique_lock<std::mutex> lock(shared_data->mutex);
  	while( !done ){
  		p->updateProcess( currentTime() );
@@ -188,18 +205,19 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
  	}
  	lock.unlock();
 
-    	//  - Wait context switching time
-    	/*std::unique_lock<std::mutex> lock2(shared_data->mutex);
+    //  - Wait context switching time
+    /*
+    std::unique_lock<std::mutex> lock2(shared_data->mutex);
 	uint32_t num = 0;
 
     	while (shared_data->context_switch < p->getStartTime() )
     	{
         	shared_data->condition.wait(lock2);
-		std::cout <<  p->getStartTime() << ": \n";
+		    std::cout <<  p->getStartTime() << ": \n";
 		
     	}
-    	lock.unlock();*/
-
+    	lock.unlock();
+    */
 
 	/*std::cout <<  p->getPid() << ": ";
 	std::cout <<  p->getStartTime() << ": ";
