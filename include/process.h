@@ -43,6 +43,10 @@ public:
     double getRemainingTime_const() const;
     uint8_t getPriority_const() const;
 
+	//create new const funcs
+    double getRemainingTime_const() const;
+    uint8_t getPriority_const() const;
+
     void setState(State new_state, uint32_t current_time);
     void setCpuCore(int8_t core_num);
 
