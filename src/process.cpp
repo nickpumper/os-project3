@@ -35,17 +35,17 @@ Process::~Process()
     delete[] burst_times;
 }
 
-uint16_t Process::getPid()
+uint16_t Process ::getPid()
 {
     return pid;
 }
 
-uint32_t Process::getStartTime()
+const uint32_t Process::getStartTime()
 {
     return start_time;
 }
 
-uint8_t Process::getPriority()
+const uint8_t Process::getPriority()
 {
     return priority;
 }

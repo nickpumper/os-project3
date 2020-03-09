@@ -112,7 +112,6 @@ int main(int argc, char **argv)
     //  - Average turnaround time
     //  - Average waiting time
 
-
     // Clean up before quitting program
     processes.clear();
 
@@ -133,6 +132,8 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
     //     - Ready queue if time slice elapsed or process was preempted
     //  - Wait context switching time
     //  * Repeat until all processes in terminated state
+
+    
 }
 
 int printProcessOutput(std::vector<Process*>& processes, std::mutex& mutex)

@@ -2,6 +2,21 @@
 
 SchedulerConfig* readConfigFile(const char *filename)
 {
+    /** Quick ref of config file format:
+     * Line 1: Number of CPU cores (1-4)
+     * Line 2: Scheduling algorithm (RR: round-robin, FCFS: first come first serve, SJF: shortest job first, PP: preemptive priority)
+     * Line 3: Context switching overhead in milliseconds (100-1000)
+     * Line 4: Time slice in milliseconds (200 - 2000) - only used for round-robin algorithm, but include in configuration file regardless
+     * Line 5: Number of processes to run (1-24)
+     * Lines 6 - N: (one line per process - following values separated by commas)
+     *      PID (unique number >= 1024)
+     *      Start time (number of milliseconds after simulator starts that process should launch: 0 - 8000)
+     *      Number of CPU and I/O bursts (odd number: CPU bursts = I/O bursts + 1)
+     *      CPU and I/O burst times (sequence of milliseconds: 1000 - 6000 separated by vertical pipe)
+     *          Alternates between CPU and I/O (always starting and ending with CPU)
+     *      Priority (number: 0 - 4)
+     */
+
     std::string line;
     std::ifstream file(filename);
     SchedulerConfig *config = new SchedulerConfig();
