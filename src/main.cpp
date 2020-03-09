@@ -86,15 +86,15 @@ int main(int argc, char **argv)
     // main thread work goes here:
 
     int num_lines = 0;
-	int temp =0;
+	int temp =0;        // flag for if we've reached the end of this loop at least once
     bool all_terminated = true;
 
     while (!(shared_data->all_terminated) && temp <1)
     {
-        // clear output from previous iteration
+        // clear output from previous iteration (Mirrinan)
         clearOutput(num_lines);
 
-        // start new processes at their appropriate start time
+        // start new processes at their appropriate start time (Mirrinan)
     	for (i = 0; i < num_cores; i++)
     	{
 		    std::cout<< "index: "<<i << std::endl;
@@ -112,20 +112,23 @@ int main(int argc, char **argv)
 
     	}
 
-        // determine when an I/O burst finishes and put the process back in the ready queue
+        // determine when an I/O burst finishes and put the process back in the ready queue (Mirrinan)
 
 
-        // sort the ready queue (if needed - based on scheduling algorithm)
+        // sort the ready queue (Mirrinan)
+        // NOTE: Round Robin and First Come First Serve DO NOT need to be sorted.
+        // Shortest Job First
         if( shared_data->algorithm == ScheduleAlgorithm::SJF )
         { 
             shared_data->ready_queue.sort( SjfComparator() ); 
         }
+        // Preemptive Priority
         if( shared_data->algorithm == ScheduleAlgorithm::PP )
         { 
             shared_data->ready_queue.sort( PpComparator() ); 
         }
 
-        // determine if all processes are in the terminated state
+        // determine if all processes are in the terminated state (Mirrinan)
         all_terminated = true;
         for (i = 0; i < processes.size(); i++)
         {
@@ -141,19 +144,22 @@ int main(int argc, char **argv)
             shared_data->all_terminated = true;
         }
 
-        // output process status table
+        // output process status table (Mirrinan)
         num_lines = printProcessOutput(processes, shared_data->mutex);
 
-        // sleep 1/60th of a second
+        // sleep 1/60th of a second (Mirrinan)
         usleep(16667);
         temp++;
     }
 
-    // wait for threads to finish
+    std::cout << "HERE!\n";
+
+    // wait for threads to finish (Mirrinan)
     for (i = 0; i < num_cores; i++)
     {
-        schedule_threads[i].join();
-    }
+        schedule_threads[i].join(); // (Mirrinan)
+    } // for num cores
+    
     // print final statistics
     //  - CPU utilization
     //  - Throughput
@@ -163,8 +169,8 @@ int main(int argc, char **argv)
     //  - Average turnaround time
     //  - Average waiting time
 
-    // Clean up before quitting program
-    processes.clear();
+    // Clean up before quitting program 
+    processes.clear(); // Mirrinan
 
     return 0;
 }
@@ -188,7 +194,7 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
  	p = shared_data->ready_queue.front(); // get process at front of ready queue
  	p->setCpuCore(core_id);
 
-  	shared_data->ready_queue.pop_front();
+  	shared_data->ready_queue.pop_front(); 
 
   	usleep( p->getStartTime() );
  	bool done = false;
@@ -202,24 +208,28 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
  		p->updateProcess( currentTime() );
  		p->setState(Process::State::Running, p->getStartTime() );
  		done = true;
- 	}
+
+        // If the algo is Round Robin, see if the time slice has elapsed. 
+        // if it has elapsed, then call it done.
+        if (shared_data->algorithm == RR) {
+            std::cout << "Time slice has elapsed! Booting from core for now.\n";
+
+            
+        } // if
+
+        // if the algo is Preemptive priority, then boot if another process has a higher priority
+        if (shared_data->algorithm == RR) {
+            std::cout <<"Another process has higher priority. Booting from core for now.\n";
+
+        } // if
+ 	} // while !done
  	lock.unlock();
 
     //  - Wait context switching time
-    /*
-    std::unique_lock<std::mutex> lock2(shared_data->mutex);
-	uint32_t num = 0;
+    usleep( p->getWaitTime() );    
 
-    	while (shared_data->context_switch < p->getStartTime() )
-    	{
-        	shared_data->condition.wait(lock2);
-		    std::cout <<  p->getStartTime() << ": \n";
-		
-    	}
-    	lock.unlock();
-    */
-
-	/*std::cout <<  p->getPid() << ": ";
+	/*
+    std::cout <<  p->getPid() << ": ";
 	std::cout <<  p->getStartTime() << ": ";
 	std::cout <<  p->getState() << ": ";
 	std::cout <<  p->getCpuCore() << std::endl;

@@ -115,6 +115,7 @@ void Process::updateProcess(uint32_t current_time)
     }
 	std::cout << "HERE2: "<< total_burst <<std::endl;
     cpu_time = cpu_time + turn_time - wait_time - total_burst/1000000.0; // total time spent running on a CPU core
+    
     // CPU time remaining until terminated
     for (i = 0; i < num_bursts; i+=2)
     {
