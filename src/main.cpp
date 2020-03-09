@@ -172,19 +172,21 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
     //  - Wait context switching time
     //  * Repeat until all processes in terminated state
 
-	p->setCpuCore(core_id);
-	
-	shared_data->ready_queue.pop_front();
+    Process *p;
+ 	p = shared_data->ready_queue.front();
+ 	p->setCpuCore(core_id);
 
-	usleep( p->getStartTime() );
-	bool done = false;
-	std::unique_lock<std::mutex> lock(shared_data->mutex);
-	while( !done ){
-		p->updateProcess( currentTime() );
-		p->setState(Process::State::Running, p->getStartTime() );
-		done = true;
-	}
-	lock.unlock();
+  	shared_data->ready_queue.pop_front();
+
+  	usleep( p->getStartTime() );
+ 	bool done = false;
+ 	std::unique_lock<std::mutex> lock(shared_data->mutex);
+ 	while( !done ){
+ 		p->updateProcess( currentTime() );
+ 		p->setState(Process::State::Running, p->getStartTime() );
+ 		done = true;
+ 	}
+ 	lock.unlock();
 
     	//  - Wait context switching time
     	/*std::unique_lock<std::mutex> lock2(shared_data->mutex);
@@ -209,7 +211,7 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
 	std::cout <<  unsigned(core_id) << " : " << unsigned(p->getCpuCore()) << std::endl;
 }
 
-int printProcessOutput(std::vector<Process*>& processes, std::mutex& mutex)
+int printProcessOutput(std::vector<Process*>& processes, std::mutex& mutex) {
     int i;
     int num_lines = 2;
     std::lock_guard<std::mutex> lock(mutex);

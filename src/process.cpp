@@ -35,60 +35,51 @@ Process::~Process()
     delete[] burst_times;
 }
 
-uint16_t Process ::getPid()
+uint16_t Process :: getPid() const
 {
     return pid;
 }
 
-const uint32_t Process::getStartTime()
+uint32_t Process::getStartTime() const
 {
     return start_time;
 }
 
-const uint8_t Process::getPriority()
-{
-    return priority;
-}
-//create new const func
-uint8_t Process::getPriority_const() const
+uint8_t Process::getPriority() const 
 {
     return priority;
 }
 
-Process::State Process::getState()
+Process::State Process::getState() const
 {
     return state;
 }
 
-int8_t Process::getCpuCore()
+int8_t Process::getCpuCore() const
 {
     return core;
 }
 
-double Process::getTurnaroundTime()
+double Process::getTurnaroundTime() const
 {
     return (double)turn_time / 1000.0;
 }
 
-double Process::getWaitTime()
+double Process::getWaitTime() const
 {
     return (double)wait_time / 1000.0;
 }
 
-double Process::getCpuTime()
+double Process::getCpuTime() const
 {
     return (double)cpu_time / 1000.0;
 }
 
-double Process::getRemainingTime()
+double Process::getRemainingTime() const
 {
     return (double)remain_time / 1000.0;
 }
-//create new const func
-double Process::getRemainingTime_const() const
-{
-    return (double)remain_time / 1000.0;
-}
+
 
 void Process::setState(State new_state, uint32_t current_time)
 {
@@ -142,12 +133,12 @@ void Process::updateBurstTime(int burst_idx, uint32_t new_time)
 bool SjfComparator::operator ()(const Process *p1, const Process *p2)
 {
     // your code here!
-    return  p1->getRemainingTime_const() < p2->getRemainingTime_const(); // change this!
+    return  p1->getRemainingTime() < p2->getRemainingTime(); // change this!
 }
 
 // PP - comparator for sorting read queue based on priority
 bool PpComparator::operator ()(const Process *p1, const Process *p2)
 {
     // your code here!
-    return p1->getPriority_const() < p2->getPriority_const(); // change this!
+    return p1->getPriority() < p2->getPriority(); // change this!
 }
