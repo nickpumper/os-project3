@@ -35,42 +35,43 @@ Process::~Process()
     delete[] burst_times;
 }
 
-uint16_t Process :: getPid() const
+uint16_t Process::getPid()
 {
     return pid;
 }
 
-uint32_t Process::getStartTime() const
+uint32_t Process::getStartTime()
 {
     return start_time;
 }
 
-uint8_t Process::getPriority() const 
+uint8_t Process::getPriority() const
 {
     return priority;
 }
 
-Process::State Process::getState() const
+
+Process::State Process::getState()
 {
     return state;
 }
 
-int8_t Process::getCpuCore() const
+int8_t Process::getCpuCore()
 {
     return core;
 }
 
-double Process::getTurnaroundTime() const
+double Process::getTurnaroundTime()
 {
     return (double)turn_time / 1000.0;
 }
 
-double Process::getWaitTime() const
+double Process::getWaitTime()
 {
     return (double)wait_time / 1000.0;
 }
 
-double Process::getCpuTime() const
+double Process::getCpuTime()
 {
     return (double)cpu_time / 1000.0;
 }
@@ -79,7 +80,6 @@ double Process::getRemainingTime() const
 {
     return (double)remain_time / 1000.0;
 }
-
 
 void Process::setState(State new_state, uint32_t current_time)
 {
@@ -115,7 +115,6 @@ void Process::updateProcess(uint32_t current_time)
     }
 	std::cout << "HERE2: "<< total_burst <<std::endl;
     cpu_time = cpu_time + turn_time - wait_time - total_burst/1000000.0; // total time spent running on a CPU core
-    
     // CPU time remaining until terminated
     for (i = 0; i < num_bursts; i+=2)
     {
@@ -134,12 +133,12 @@ void Process::updateBurstTime(int burst_idx, uint32_t new_time)
 bool SjfComparator::operator ()(const Process *p1, const Process *p2)
 {
     // your code here!
-    return  p1->getRemainingTime() < p2->getRemainingTime(); // change this!
+    return  p1->Process::getRemainingTime() < p2->Process::getRemainingTime(); // change this!
 }
 
 // PP - comparator for sorting read queue based on priority
 bool PpComparator::operator ()(const Process *p1, const Process *p2)
 {
     // your code here!
-    return p1->getPriority() < p2->getPriority(); // change this!
+    return p1->Process::getPriority() < p2->Process::getPriority(); // change this!
 }
