@@ -35,12 +35,12 @@ Process::~Process()
     delete[] burst_times;
 }
 
-uint16_t Process::getPid()
+uint16_t Process::getPid() const
 {
     return pid;
 }
 
-uint32_t Process::getStartTime()
+uint32_t Process::getStartTime() const
 {
     return start_time;
 }
@@ -50,28 +50,27 @@ uint8_t Process::getPriority() const
     return priority;
 }
 
-
-Process::State Process::getState()
+Process::State Process::getState() const
 {
     return state;
 }
 
-int8_t Process::getCpuCore()
+int8_t Process::getCpuCore() const
 {
     return core;
 }
 
-double Process::getTurnaroundTime()
+double Process::getTurnaroundTime() const
 {
     return (double)turn_time / 1000.0;
 }
 
-double Process::getWaitTime()
+double Process::getWaitTime() const
 {
     return (double)wait_time / 1000.0;
 }
 
-double Process::getCpuTime()
+double Process::getCpuTime() const
 {
     return (double)cpu_time / 1000.0;
 }
@@ -81,12 +80,27 @@ double Process::getRemainingTime() const
     return (double)remain_time / 1000.0;
 }
 
+int16_t Process::getCurrentBurst() const
+{
+	return current_burst;
+}
+int32_t Process::getBurstTime() const
+{
+	return burst_times[current_burst];
+}
+uint16_t Process::getNumBurst() const
+{
+	return num_bursts;
+}
+
 void Process::setState(State new_state, uint32_t current_time)
 {
     if (state == State::NotStarted && new_state == State::Ready)
     {
         launch_time = current_time;
+	previous_time = launch_time;
     }
+
     state = new_state;
 }
 
@@ -99,28 +113,43 @@ void Process::updateProcess(uint32_t current_time)
 {
     // use `current_time` to update turnaround time, wait time, burst times, 
     // cpu time, and remaining time
-	int i;
-	std::cout << "HERE: "<<current_time << ": "<< turn_time <<std::endl;
+    uint32_t spent_time = ( current_time - previous_time );
+	//std::cout << "previous time: " << previous_time <<" : " << launch_time << std::endl;
+    if( spent_time < 0 ) { spent_time = 0; }
+	//std::cout << "spent time" << spent_time << std::endl;
+    // total time since 'launch' (until terminated)
+    if( getState() != State::Terminated )
+    {
+    	turn_time = current_time - launch_time;
+    }
+    // total time spent in ready queue
+    if( getState() == State::Ready )
+    {
+    	wait_time = wait_time + spent_time;
+    }
 
-    turn_time = turn_time + current_time/1000000.0; // total time since 'launch' (until terminated)
-    wait_time = wait_time + ( current_time/1000000.0 - start_time ) ; // total time spent in ready queue
-	std::cout << "turn_time: "<< turn_time <<std::endl;
-	std::cout << "wait_time: "<< wait_time <<std::endl;
-    // CPU/IO burst array of times (in ms)
-	uint32_t total_burst;
-    for (i = 0; i < num_bursts; i++)
+    // total time spent running on a CPU core
+    if( getState() == State::Running )
     {
-        //burst_times[i] = 0;
-	total_burst += burst_times[i];
+    	cpu_time = cpu_time + spent_time;
+    	// CPU time remaining until terminated
+	remain_time = remain_time - spent_time;
     }
-	std::cout << "HERE2: "<< total_burst <<std::endl;
-    cpu_time = cpu_time + turn_time - wait_time - total_burst/1000000.0; // total time spent running on a CPU core
-    // CPU time remaining until terminated
-    for (i = 0; i < num_bursts; i+=2)
+    //Track or update burst time in either running or IO.
+    //odd numner: CPU bursts = I/O bursts + 1 ???
+    if( getState() == State::Running || getState() == State::IO )
     {
-        remain_time += burst_times[i];
+	if( getBurstTime() < spent_time )
+	{
+		current_burst++;
+	}
+	else
+	{
+		updateBurstTime( current_burst, ( getBurstTime() -  spent_time ) );
+	}
     }
-}
+	previous_time = current_time;
+}//coreRunProcess
 
 void Process::updateBurstTime(int burst_idx, uint32_t new_time)
 {
@@ -140,5 +169,5 @@ bool SjfComparator::operator ()(const Process *p1, const Process *p2)
 bool PpComparator::operator ()(const Process *p1, const Process *p2)
 {
     // your code here!
-    return p1->Process::getPriority() < p2->Process::getPriority(); // change this!
+    return p1->Process::getPriority() != p2->Process::getPriority() ? p1->Process::getPriority() < p2->Process::getPriority() : false; // change this!
 }
