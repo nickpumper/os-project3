@@ -41,7 +41,8 @@ public:
     double getRemainingTime() const;
     
     int16_t getCurrentBurst() const;
-    int32_t getBurstTime() const;
+    int32_t getIOBurstTime() const;
+    int32_t getCPUBurstTime() const;
     uint16_t getNumBurst() const;
 
     void setState(State new_state, uint32_t current_time);

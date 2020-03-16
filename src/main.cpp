@@ -83,28 +83,28 @@ int main(int argc, char **argv)
         clearOutput(num_lines);
 
         // start new processes at their appropriate start time
-	{
-	std::lock_guard<std::mutex> lock(shared_data->mutex);
-	//std::unique_lock<std::mutex> lock(shared_data->mutex);
+	//{
+	//std::lock_guard<std::mutex> lock(shared_data->mutex);
+	std::unique_lock<std::mutex> lock(shared_data->mutex);
     	for (i = 0; i < processes.size(); i++)
     	{
 		//put process to ready queue if a process is time to lunch.
 		if( processes[i]->getState() == Process::State::NotStarted &&
-				processes[i]->getStartTime()+start == currentTime() )
+				processes[i]->getStartTime()+start >= currentTime() )
 		{
 			processes[i]->setState( Process::State::Ready, currentTime() );
 			shared_data->ready_queue.push_back( processes[i] );
 		}
 	//shared_data->condition.wait(lock);
     	}
-	//lock.unlock();
-	}
+	lock.unlock();
+	//}
 	shared_data->condition.notify_one();
 
         // determine when an I/O burst finishes and put the process back in the ready queue
-	{
-	std::lock_guard<std::mutex> lock(shared_data->mutex);
-	//std::unique_lock<std::mutex> lock(shared_data->mutex);
+	//{
+	//std::lock_guard<std::mutex> lock(shared_data->mutex);
+	std::unique_lock<std::mutex> lock2(shared_data->mutex);
     	for (i = 0; i < processes.size(); i++)
     	{
 		uint16_t burst_counter = processes[i]->getCurrentBurst();
@@ -116,8 +116,8 @@ int main(int argc, char **argv)
 			shared_data->ready_queue.push_back( processes[i] );
 		}
 	}
-	//lock.unlock();
-	}
+	lock2.unlock();
+	//}
 	shared_data->condition.notify_one();
 
         // sort the ready queue (if needed - based on scheduling algorithm)
@@ -188,15 +188,15 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
 	Process *p = shared_data->ready_queue.front();
 	shared_data->ready_queue.pop_front();
 	uint32_t burst_cpu_time;
+	uint32_t burst_io_time;
 	uint32_t start_cpu_time;
 	uint8_t current_burst;
 
     	while ( !(shared_data->all_terminated) )
 	{
-    		//  - Simulate the processes running until one of the following:
-		{
-		std::lock_guard<std::mutex> lock(shared_data->mutex);
-		//std::unique_lock<std::mutex> lock(shared_data->mutex);
+		//{
+		//std::lock_guard<std::mutex> lock(shared_data->mutex);
+		std::unique_lock<std::mutex> lock(shared_data->mutex);
 		std::cout << "Size queue: " << shared_data->ready_queue.size() << "\n";
 
 
@@ -204,21 +204,29 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
 		p->setState(Process::State::Running, currentTime() );
 		p->updateProcess( currentTime() );
 		
-		burst_cpu_time = p->getBurstTime();
+		burst_io_time = p->getIOBurstTime();
+		burst_cpu_time = p->getCPUBurstTime();
 		current_burst = p->getCurrentBurst();
 
 		//shared_data->condition.wait(lock);
-		//lock.unlock();
-		}
+		lock.unlock();
+		//}
 		shared_data->condition.notify_one();
 
 
-
+    //  - Simulate the processes running until one of the following:
     //     - CPU burst time has elapsed
     //     - RR time slice has elapsed
     //     - Process preempted by higher priority process
 		start_cpu_time = currentTime();
+
+		if( p->getState() == Process::State::Running )
+		{
 		while( currentTime()  < start_cpu_time + burst_cpu_time );
+		}
+
+
+
 
 		if( shared_data->algorithm == ScheduleAlgorithm::FCFS )
 		{
@@ -238,8 +246,13 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
 		}
 
     		//  - Place the process back in the appropriate queue
-		{
-			std::lock_guard<std::mutex> lock(shared_data->mutex);
+    		//     - I/O queue if CPU burst finished (and process not finished)
+    		//     - Terminated if CPU burst finished and no more bursts remain
+    		//     - Ready queue if time slice elapsed or process was preempted
+
+		//{
+			//std::lock_guard<std::mutex> lock(shared_data->mutex);
+			std::unique_lock<std::mutex> lock2(shared_data->mutex);
 			p->setCpuCore(-1);
 			p->updateProcess( currentTime() );
 
@@ -258,7 +271,9 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
 			p->setState( Process::State::Ready, currentTime() );
 			shared_data->ready_queue.push_back( p );
 			}
-		}
+		//}
+		lock2.unlock();
+		//}
 		shared_data->condition.notify_one();
     		//  - Wait context switching time
 		usleep( shared_data->context_switch );

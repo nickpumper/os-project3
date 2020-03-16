@@ -24,6 +24,7 @@ Process::Process(ProcessDetails details, uint32_t current_time)
     wait_time = 0;
     cpu_time = 0;
     remain_time = 0;
+    previous_time = 0;
     for (i = 0; i < num_bursts; i+=2)
     {
         remain_time += burst_times[i];
@@ -84,9 +85,13 @@ int16_t Process::getCurrentBurst() const
 {
 	return current_burst;
 }
-int32_t Process::getBurstTime() const
+int32_t Process::getIOBurstTime() const
 {
 	return burst_times[current_burst];
+}
+int32_t Process::getCPUBurstTime() const
+{
+	return burst_times[current_burst+1];
 }
 uint16_t Process::getNumBurst() const
 {
@@ -135,17 +140,26 @@ void Process::updateProcess(uint32_t current_time)
     	// CPU time remaining until terminated
 	remain_time = remain_time - spent_time;
     }
-    //Track or update burst time in either running or IO.
-    //odd numner: CPU bursts = I/O bursts + 1 ???
-    if( getState() == State::Running || getState() == State::IO )
+
+    //even numner: IO burst
+    if( getState() == State::IO )
     {
-	if( getBurstTime() < spent_time )
+	if( getIOBurstTime() < spent_time )
 	{
 		current_burst++;
 	}
 	else
 	{
-		updateBurstTime( current_burst, ( getBurstTime() -  spent_time ) );
+		updateBurstTime( current_burst, ( getIOBurstTime() -  spent_time ) );
+	}
+    }
+    //odd numner: CPU bursts = I/O bursts + 1
+    //CPU burst
+    if( getState() == State::Running )
+    {
+	if( getCurrentBurst()+1 < getNumBurst() && getCPUBurstTime() < spent_time )
+	{ 
+		updateBurstTime( current_burst+1, ( getCPUBurstTime() -  spent_time ) );
 	}
     }
 	previous_time = current_time;
