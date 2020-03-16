@@ -157,9 +157,9 @@ void Process::updateProcess(uint32_t current_time)
     //CPU burst
     if( getState() == State::Running )
     {
-	if( getCurrentBurst()+1 < getNumBurst() && getCPUBurstTime() < spent_time )
-	{ 
-		updateBurstTime( current_burst+1, ( getCPUBurstTime() -  spent_time ) );
+	if( getCurrentBurst()+1 < getNumBurst() && getCPUBurstTime() > spent_time )
+	{
+		//updateBurstTime( current_burst+1, ( getCPUBurstTime() -  spent_time ) );
 	}
     }
 	previous_time = current_time;
