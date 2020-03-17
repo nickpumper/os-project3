@@ -24,7 +24,7 @@ Process::Process(ProcessDetails details, uint32_t current_time)
     wait_time = 0;
     cpu_time = 0;
     remain_time = 0;
-    previous_time = 0;
+    previous_time = current_time;
     for (i = 0; i < num_bursts; i+=2)
     {
         remain_time += burst_times[i];
@@ -139,6 +139,7 @@ void Process::updateProcess(uint32_t current_time)
     	cpu_time = cpu_time + spent_time;
     	// CPU time remaining until terminated
 	remain_time = remain_time - spent_time;
+	if( remain_time<0 ){ remain_time = 0; }
     }
 
     //even numner: IO burst
@@ -157,9 +158,13 @@ void Process::updateProcess(uint32_t current_time)
     //CPU burst
     if( getState() == State::Running )
     {
-	if( getCurrentBurst()+1 < getNumBurst() && getCPUBurstTime() > spent_time )
+	if( getCPUBurstTime() < spent_time )
 	{
-		//updateBurstTime( current_burst+1, ( getCPUBurstTime() -  spent_time ) );
+		//current_burst++;
+	}
+	else
+	{
+		updateBurstTime( current_burst+1, ( getIOBurstTime() -  spent_time ) );
 	}
     }
 	previous_time = current_time;
