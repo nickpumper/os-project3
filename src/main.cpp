@@ -138,6 +138,7 @@ int main(int argc, char **argv)
         shared_data->condition.notify_one();*/
 
         // sort the ready queue (if needed - based on scheduling algorithm)
+
         /*if( shared_data->algorithm == ScheduleAlgorithm::SJF )
         { 
             shared_data->ready_queue.sort( SjfComparator() );
@@ -148,6 +149,7 @@ int main(int argc, char **argv)
         }*/
 
         // determine if all processes are in the terminated state
+
     	/*all_terminated = true;
     	for (i = 0; i < processes.size(); i++)
     	{
@@ -181,14 +183,51 @@ int main(int argc, char **argv)
     //  - Average turnaround time
     //  - Average waiting time
 
+    int cpuUtilization = 0; 
+    int avgThroughputFirstHalf = 0;
+    int avgThroughputLastHalf =0;
+    int totalAvgThroughput = 0;
+    double avgTurnaroundTime = 0;
+    double avgWaitingTime = 0;
 
+    double cpuTimeSum = 0;
+    double turnaroundSum = 0;
+    double waitSum = 0;
+    double numProcesses = processes.size();
 
+    uint32_t endTime = currentTime();
+    uint32_t totalTime = endTime - start;
+
+    // compute stastics when we pop each process off the vector
+    while (!processes.empty()) {
+        // fetch and pop off of the vector
+        Process * process = processes.back();
+        processes.pop_back();
+
+        cpuTimeSum = cpuTimeSum + process->getCpuTime();
+        waitSum = waitSum + process->getWaitTime();
+        turnaroundSum = turnaroundSum + process->getTurnaroundTime();
+    }
+
+    avgTurnaroundTime = turnaroundSum / numProcesses;
+    avgWaitingTime = waitSum / numProcesses;
+    cpuUtilization = (totalTime / cpuTimeSum) * 100; // THIS IS WRONG
+
+    std::cout<< "\n------ SIMULATION COMPLETE -----\n\nSimulation Statistics:\n";
+    std::cout<<"CPU Utilization: " << cpuUtilization <<"\n";
+    std::cout<<"Throughput Averages:\n";
+    std::cout<<"\tAverage for first 50% of processes finished: " << avgThroughputFirstHalf << "\n";
+    std::cout<<"\tAverage for second 50% of processes finished: " << avgThroughputLastHalf << "\n";
+    std::cout<<"\tOverall Throughput Average"<< totalAvgThroughput << "\n";
+    std::cout<<"Average Turnaround Time: " << avgTurnaroundTime << "\n";
+    std::cout<<"Average Waiting Time: " << avgWaitingTime << "\n";
+    std::cout <<"\n";
 
     // Clean up before quitting program
     processes.clear();
 
     return 0;
-}
+} // main
 
 void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
 {
