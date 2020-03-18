@@ -195,8 +195,7 @@ int main(int argc, char **argv)
     double waitSum = 0;
     double numProcesses = processes.size();
 
-    uint32_t endTime = currentTime();
-    uint32_t totalTime = endTime - start;
+    uint32_t totalTime = (currentTime() - start) / 1000; // get total CPU time, convert from ms to seconds
 
     // compute stastics when we pop each process off the vector
     while (!processes.empty()) {
@@ -204,17 +203,16 @@ int main(int argc, char **argv)
         Process * process = processes.back();
         processes.pop_back();
 
-        cpuTimeSum = cpuTimeSum + process->getCpuTime();
         waitSum = waitSum + process->getWaitTime();
         turnaroundSum = turnaroundSum + process->getTurnaroundTime();
     }
 
     avgTurnaroundTime = turnaroundSum / numProcesses;
     avgWaitingTime = waitSum / numProcesses;
-    cpuUtilization = (totalTime / cpuTimeSum) * 100; // THIS IS WRONG
+    cpuUtilization = (cpuTimeSum / totalTime) * 100; // THIS IS W
 
     std::cout<< "\n------ SIMULATION COMPLETE -----\n\nSimulation Statistics:\n";
-    std::cout<<"CPU Utilization: " << cpuUtilization <<"\n";
+    std::cout<<"CPU Utilization: " << cpuUtilization <<"\n"; // THIS WILL NOT RETURN THE CORRECT VALUE AT THE MOMENT 
     std::cout<<"Throughput Averages:\n";
     std::cout<<"\tAverage for first 50% of processes finished: " << avgThroughputFirstHalf << "\n";
     std::cout<<"\tAverage for second 50% of processes finished: " << avgThroughputLastHalf << "\n";

@@ -103,7 +103,7 @@ void Process::setState(State new_state, uint32_t current_time)
     if (state == State::NotStarted && new_state == State::Ready)
     {
         launch_time = current_time;
-	previous_time = launch_time;
+	    previous_time = launch_time;
     }
 
     state = new_state;
@@ -138,34 +138,34 @@ void Process::updateProcess(uint32_t current_time)
     {
     	cpu_time = cpu_time + spent_time;
     	// CPU time remaining until terminated
-	remain_time = remain_time - spent_time;
-	if( remain_time<0 ){ remain_time = 0; }
+        remain_time = remain_time - spent_time;
+        if( remain_time<0 ){ remain_time = 0; }
     }
 
     //even numner: IO burst
     if( getState() == State::IO )
     {
-	if( getIOBurstTime() < spent_time )
-	{
-		current_burst++;
-	}
-	else
-	{
-		updateBurstTime( current_burst, ( getIOBurstTime() -  spent_time ) );
-	}
+        if( getIOBurstTime() < spent_time )
+        {
+            current_burst++;
+        }
+        else
+        {
+            updateBurstTime( current_burst, ( getIOBurstTime() -  spent_time ) );
+        }
     }
     //odd numner: CPU bursts = I/O bursts + 1
     //CPU burst
     if( getState() == State::Running )
     {
-	if( getCPUBurstTime() < spent_time )
-	{
-		//current_burst++;
-	}
-	else
-	{
-		updateBurstTime( current_burst+1, ( getIOBurstTime() -  spent_time ) );
-	}
+        if( getCPUBurstTime() < spent_time )
+        {
+            //current_burst++;
+        }
+        else
+        {
+            updateBurstTime( current_burst+1, ( getIOBurstTime() -  spent_time ) );
+        }
     }
 	previous_time = current_time;
 }//coreRunProcess
