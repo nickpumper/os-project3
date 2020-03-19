@@ -85,11 +85,7 @@ int16_t Process::getCurrentBurst() const
 {
 	return current_burst;
 }
-int32_t Process::getIOBurstTime() const
-{
-	return burst_times[current_burst];
-}
-int32_t Process::getCPUBurstTime() const
+int32_t Process::getBurstTime() const
 {
 	return burst_times[current_burst];
 }
@@ -146,28 +142,15 @@ void Process::updateProcess(uint32_t current_time)
     //even numner: IO burst
     if( getState() == State::IO || getState() == State::Running )
     {
-        if( getIOBurstTime() < spent_time )
+        if( getBurstTime() < spent_time )
         {
             current_burst++;
         }
         else
         {
-            updateBurstTime( current_burst, ( getIOBurstTime() -  spent_time ) );
+            updateBurstTime( current_burst, ( getBurstTime() -  spent_time ) );
         }
     }
-    //odd numner: CPU bursts = I/O bursts + 1
-    //CPU burst
-    /*if( getState() == State::Running )
-    {
-	if( getIOBurstTime() < spent_time )
-	{
-		current_burst++;
-	}
-	else
-	{
-		updateBurstTime( current_burst, ( getIOBurstTime() -  spent_time ) );
-	}
-    }*/
 	previous_time = current_time;
 }//coreRunProcess
 
