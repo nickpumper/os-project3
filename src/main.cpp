@@ -193,8 +193,7 @@ int main(int argc, char **argv)
 
         double turn_time = turnaround_times.back();
         turnaround_times.pop_back();
-
-        std::cout<< "DEBUGGING: turn around time for process " << i << " is " << turn_time << std::endl;
+        //std::cout<< "DEBUGGING: turn around time for process " << i << " is " << turn_time << std::endl;
 
         // if this process is in the first half of processes
         if (i < (num_processes / 2)) {
