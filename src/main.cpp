@@ -87,7 +87,7 @@ int main(int argc, char **argv)
         all_terminated = true;
     	for (i = 0; i < processes.size(); i++)
     	{
-	    previous_burst = processes[i]->getCurrentBurst();
+	        previous_burst = processes[i]->getCurrentBurst();
 
             // start new processes at their appropriate start time
             processes[i]->updateProcess( currentTime() );
@@ -138,8 +138,6 @@ int main(int argc, char **argv)
     {
         schedule_threads[i].join();
     }
-    
-    uint32_t time_taken = (currentTime() - start) / 1000; // get total CPU time, convert from ms to seconds
 
     // print final statistics
     //  - CPU utilization
@@ -148,17 +146,25 @@ int main(int argc, char **argv)
     //     - Average for second 50% of processes finished
     //     - Overall average
     //  - Average turnaround time
-    //  - Average waiting time
+    //  - Average waiting tim
+
+    // take this as soon as complete
+    uint32_t time_taken = (currentTime() - start) / 1000; // get total time, convert from ms to seconds
 
     double cpuTimeSum = 0;
     double turnaroundSum = 0;
     double waitSum = 0;
     double num_processes = processes.size();
 
-    double cpuUtilization = 1;         // start at 1 indicating 100% util, then subtract from there
-    double avgThroughputFirstHalf = 0;
-    double avgThroughputLastHalf =0;
+    // for throughput
+    double avg_throughput_first_half = 0;
+    double avg_throughput_second_half = 0;
     double total_avg_throughput = num_processes / time_taken;
+    double max_turn_time_first_half = 0; // the amount of time taken for the first half processes.
+    double max_turn_time_last_half = 0; // ^^
+    std::vector<double> turnaround_times; 
+
+    double cpuUtilization = 1;         // start at 1 indicating 100% util, then subtract from there
     double avgTurnaroundTime = 0;
     double avgWaitingTime = 0;
 
@@ -170,17 +176,54 @@ int main(int argc, char **argv)
 
         waitSum = waitSum + process->getWaitTime();
         turnaroundSum = turnaroundSum + process->getTurnaroundTime();
-    }
+
+        turnaround_times.push_back(process->getTurnaroundTime()); // so we can calculate throughput
+    } // while
 
     avgTurnaroundTime = turnaroundSum / num_processes;
     avgWaitingTime = waitSum / num_processes;
-    cpuUtilization = (cpuTimeSum / time_taken) * 100;
+    cpuUtilization = (cpuTimeSum / time_taken) * 100;  // Formula is right, need to accurately count core work % still
 
+    // compute throughput for first half and second half
+    sort(turnaround_times.begin(), turnaround_times.end(), std::greater<double>());
+    i = 0;
+    double first_half_processes = 0;
+    double second_half_processes = 0;
+    while (!turnaround_times.empty()) {
+
+        double turn_time = turnaround_times.back();
+        turnaround_times.pop_back();
+
+        std::cout<< "DEBUGGING: turn around time for process " << i << " is " << turn_time << std::endl;
+
+        // if this process is in the first half of processes
+        if (i < (num_processes / 2)) {
+            if (max_turn_time_first_half < turn_time) {
+                max_turn_time_first_half = turn_time;
+            }
+            first_half_processes++; // increment how many processes are in the first half
+        } // if
+        else { // otherwise its in the second half
+            if (max_turn_time_last_half < turn_time) {
+                max_turn_time_last_half = turn_time;
+            }
+            second_half_processes++;
+        } // else
+        i++;
+    } // while
+    
+    avg_throughput_first_half = first_half_processes / max_turn_time_first_half;
+    avg_throughput_second_half = second_half_processes / max_turn_time_last_half;
+
+    // now print.
     std::cout<< "\n------ SIMULATION COMPLETE -----\n\nSimulation Statistics:\n";
+    //std::cout<<"DEBUG: Time taken is: " << time_taken << std::endl;
+    //std::cout<<"DEBUG: max time first half of processes is " << max_turn_time_first_half << " with this many processes: "<< first_half_processes << std::endl;
+    // std::cout<< "DEBUG: and for the last half: " << max_turn_time_last_half << " with this many processes: "<< second_half_processes << std::endl;
     std::cout<<"CPU Utilization: " << cpuUtilization <<"\n";
     std::cout<<"Throughput Averages:\n";
-    std::cout<<"\tAverage for first 50% of processes finished: " << avgThroughputFirstHalf << "\n";
-    std::cout<<"\tAverage for second 50% of processes finished: " << avgThroughputLastHalf << "\n";
+    std::cout<<"\tAverage for first 50% of processes finished: " << avg_throughput_first_half << "\n";
+    std::cout<<"\tAverage for second 50% of processes finished: " << avg_throughput_second_half << "\n";
     std::cout<<"\tOverall Throughput: "<< total_avg_throughput << "\n";
     std::cout<<"Average Turnaround Time: " << avgTurnaroundTime << "\n";
     std::cout<<"Average Waiting Time: " << avgWaitingTime << "\n";
@@ -250,29 +293,31 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
 		{
 			if( p->getState() == Process::State::Running )
 			{
-                		if( shared_data->algorithm == ScheduleAlgorithm::RR )
-                		{
-               			     while( shared_data->time_slice > (currentTime() - start_cpu_time) );
-                		}
-                		else if( shared_data->algorithm == ScheduleAlgorithm::PP )
-                		{
-				    pri = false;//lower numner is priority.
-				    while( currentTime()  < start_cpu_time + cpu_burst_time && !pri )
-				    {
-					std::unique_lock<std::mutex> lock3(shared_data->mutex);
-					if( shared_data->ready_queue.front() != NULL &&
-						shared_data->ready_queue.front()->getPriority() < p->getPriority() )
-					{ 
-						pri = true;
-					}
-                			lock3.unlock();
-                			shared_data->condition.notify_one();
-				    }
-                		}
-                		else
-                		{
-                    			while( currentTime()  < start_cpu_time + cpu_burst_time );
-                		}
+                    if( shared_data->algorithm == ScheduleAlgorithm::RR )
+                    {
+                            while( shared_data->time_slice > (currentTime() - start_cpu_time) );
+                    }
+                    else if( shared_data->algorithm == ScheduleAlgorithm::PP )
+                    {
+
+                        pri = false;//lower numner is priority.
+                        while( currentTime()  < start_cpu_time + cpu_burst_time && !pri )
+                        {
+                            std::unique_lock<std::mutex> lock3(shared_data->mutex);
+                            if( shared_data->ready_queue.front() != NULL &&
+                                shared_data->ready_queue.front()->getPriority() < p->getPriority() )
+                            { 
+                                pri = true;
+                            }
+
+                            lock3.unlock();
+                            shared_data->condition.notify_one();
+                        }
+                    }
+                    else
+                    {
+                        while( currentTime()  < start_cpu_time + cpu_burst_time );
+                    }
 			}//running
 		}//null
 
@@ -299,7 +344,7 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
 			else
 			{
                 p->setState( Process::State::Ready, currentTime() );
-                shared_data->ready_queue.push_back( p );
+                shared_data->ready_queue.push_back( p ); //
 			}
 			lock2.unlock();
 			shared_data->condition.notify_one();
