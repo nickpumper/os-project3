@@ -111,7 +111,7 @@ int main(int argc, char **argv)
             	}
             	all_terminated = false;
 
-            }//
+            } // if
     	}//for
         // sort the ready queue (if needed - based on scheduling algorithm)
         if( shared_data->algorithm == ScheduleAlgorithm::SJF )
@@ -138,29 +138,29 @@ int main(int argc, char **argv)
     {
         schedule_threads[i].join();
     }
+    
+    uint32_t time_taken = (currentTime() - start) / 1000; // get total CPU time, convert from ms to seconds
 
     // print final statistics
     //  - CPU utilization
-    //  - Throughput
+    //  - Throughput (# of processes finished per unit time (seconds))
     //     - Average for first 50% of processes finished
     //     - Average for second 50% of processes finished
     //     - Overall average
     //  - Average turnaround time
     //  - Average waiting time
 
-    int cpuUtilization = 0; 
-    int avgThroughputFirstHalf = 0;
-    int avgThroughputLastHalf =0;
-    int totalAvgThroughput = 0;
-    double avgTurnaroundTime = 0;
-    double avgWaitingTime = 0;
-
     double cpuTimeSum = 0;
     double turnaroundSum = 0;
     double waitSum = 0;
-    double numProcesses = processes.size();
+    double num_processes = processes.size();
 
-    uint32_t totalTime = (currentTime() - start) / 1000; // get total CPU time, convert from ms to seconds
+    double cpuUtilization = 1;         // start at 1 indicating 100% util, then subtract from there
+    double avgThroughputFirstHalf = 0;
+    double avgThroughputLastHalf =0;
+    double total_avg_throughput = num_processes / time_taken;
+    double avgTurnaroundTime = 0;
+    double avgWaitingTime = 0;
 
     // compute stastics when we pop each process off the vector
     while (!processes.empty()) {
@@ -172,16 +172,16 @@ int main(int argc, char **argv)
         turnaroundSum = turnaroundSum + process->getTurnaroundTime();
     }
 
-    avgTurnaroundTime = turnaroundSum / numProcesses;
-    avgWaitingTime = waitSum / numProcesses;
-    cpuUtilization = (cpuTimeSum / totalTime) * 100; // THIS IS W
+    avgTurnaroundTime = turnaroundSum / num_processes;
+    avgWaitingTime = waitSum / num_processes;
+    cpuUtilization = (cpuTimeSum / time_taken) * 100;
 
     std::cout<< "\n------ SIMULATION COMPLETE -----\n\nSimulation Statistics:\n";
-    std::cout<<"CPU Utilization: " << cpuUtilization <<"\n"; // THIS WILL NOT RETURN THE CORRECT VALUE AT THE MOMENT 
+    std::cout<<"CPU Utilization: " << cpuUtilization <<"\n";
     std::cout<<"Throughput Averages:\n";
     std::cout<<"\tAverage for first 50% of processes finished: " << avgThroughputFirstHalf << "\n";
     std::cout<<"\tAverage for second 50% of processes finished: " << avgThroughputLastHalf << "\n";
-    std::cout<<"\tOverall Throughput Average"<< totalAvgThroughput << "\n";
+    std::cout<<"\tOverall Throughput: "<< total_avg_throughput << "\n";
     std::cout<<"Average Turnaround Time: " << avgTurnaroundTime << "\n";
     std::cout<<"Average Waiting Time: " << avgWaitingTime << "\n";
     std::cout <<"\n";
@@ -206,80 +206,85 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
     //     - Ready queue if time slice elapsed or process was preempted
     //  - Wait context switching time
     //  * Repeat until all processes in terminated state
+
 	uint32_t start_cpu_time;
 	uint16_t previous_burst;
-	int32_t cpu_burst_time;
+	int32_t  cpu_burst_time;
+    double   cpu_burst_sum = 0; // used to calculate % time this core was executing
 	Process *p;
 
-    	while ( !(shared_data->all_terminated) )
+    while ( !(shared_data->all_terminated) )
 	{
 		p = NULL;
 		start_cpu_time = 0;
 		previous_burst = 0;
 		cpu_burst_time = 0;
-    		//  - Get process at front of ready queue
+
+    	//  - Get process at front of ready queue
 		if( p == NULL && !(shared_data->all_terminated) )
 		{
 			if( !shared_data->ready_queue.empty() )
 			{
-                		std::unique_lock<std::mutex> lock(shared_data->mutex);
-                		p = shared_data->ready_queue.front();
-                		shared_data->ready_queue.pop_front();
-                		p->setCpuCore(core_id);
-                		p->setState( Process::State::Running, currentTime() );
+                std::unique_lock<std::mutex> lock(shared_data->mutex);
+                p = shared_data->ready_queue.front();
+                shared_data->ready_queue.pop_front();
+                p->setCpuCore(core_id);
+                p->setState( Process::State::Running, currentTime() );
 
 				//This is causing some variations how cpus run.
-               			previous_burst = p->getCurrentBurst();
+               	previous_burst = p->getCurrentBurst();
 				cpu_burst_time = p->getIOBurstTime();
-                		p->updateProcess( currentTime() );
+                p->updateProcess( currentTime() );
 				start_cpu_time = currentTime();
 
-                		lock.unlock();
-                		shared_data->condition.notify_one();
+                lock.unlock();
+                shared_data->condition.notify_one();
 			}
 		} // if( p == NULL && !(shared_data->all_terminated)
 
-        	//  - Simulate the processes running until one of the following:
-        	//     - CPU burst time has elapsed
-        	//     - RR time slice has elapsed
-        	//     - Process preempted by higher priority process
+        //  - Simulate the processes running until one of the following:
+        //     - CPU burst time has elapsed
+        //     - RR time slice has elapsed
+        //     - Process preempted by higher priority process
 		if( p!=NULL )
 		{
 			if( p->getState() == Process::State::Running )
 			{
-                		if( shared_data->algorithm == ScheduleAlgorithm::RR )
-                		{
-               			     while( shared_data->time_slice > (currentTime() - start_cpu_time) );
-                		}
-                		else if( shared_data->algorithm == ScheduleAlgorithm::PP )
-                		{
-                		    std::unique_lock<std::mutex> lock3(shared_data->mutex);
-                		    while( currentTime()  < start_cpu_time + cpu_burst_time  );
-                		    lock3.unlock();
-                		    shared_data->condition.notify_one();
-                		}
-                		else
-                		{
-                    			while( currentTime()  < start_cpu_time + cpu_burst_time );
-                		}
+                if( shared_data->algorithm == ScheduleAlgorithm::RR )
+                {
+                        while( shared_data->time_slice > (currentTime() - start_cpu_time) );
+                }
+                else if( shared_data->algorithm == ScheduleAlgorithm::PP )
+                {
+                    std::unique_lock<std::mutex> lock3(shared_data->mutex);
+                    while( currentTime()  < start_cpu_time + cpu_burst_time  );
+                    lock3.unlock();
+                    shared_data->condition.notify_one();
+                }
+                else
+                {
+                        while( currentTime()  < start_cpu_time + cpu_burst_time );
+                }
 			}
-		}//running
-        	//  - Place the process back in the appropriate queue
-        	//  - I/O queue if CPU burst finished (and process not finished)
-        	//  - Terminated if CPU burst finished and no more bursts remain
-        	//  - Ready queue if time slice elapsed or process was preempted
+		}
+        
+        // running
+        //  - Place the process back in the appropriate queue
+        //  - I/O queue if CPU burst finished (and process not finished)
+        //  - Terminated if CPU burst finished and no more bursts remain
+        //  - Ready queue if time slice elapsed or process was preempted
 		if( p!=NULL )
 		{
 			std::unique_lock<std::mutex> lock2(shared_data->mutex);
 			p->setCpuCore(-1);
 			p->updateProcess( currentTime() );
 
-        		//  - I/O queue if CPU burst finished (and process not finished) it doesnt work..here.
+        	//  - I/O queue if CPU burst finished (and process not finished) it doesnt work..here.
 			if( previous_burst < p->getCurrentBurst() && p->getRemainingTime() > 0 )
 			{
 				p->setState( Process::State::IO, currentTime() );
 			}
-        		//  - Terminated if CPU burst finished and no more bursts remain
+        	//  - Terminated if CPU burst finished and no more bursts remain
 			else if( p->getNumBurst() <= p->getCurrentBurst() || p->getRemainingTime() <= 0 )
 			{
 				p->setState( Process::State::Terminated, currentTime() );
@@ -287,16 +292,20 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
 			//  - Ready queue if time slice elapsed or process was preempted
 			else
 			{
-                		p->setState( Process::State::Ready, currentTime() );
-                		shared_data->ready_queue.push_back( p );
+                p->setState( Process::State::Ready, currentTime() );
+                shared_data->ready_queue.push_back( p );
 			}
 			lock2.unlock();
 			shared_data->condition.notify_one();
 		}//p!=NULL
 
-    		//  - Wait context switching time
+    	//  - Wait context switching time
 		usleep( shared_data->context_switch );
 	} // !(shared_data->all_terminated)
+
+    // Core is finished running.
+    // Calculate % time this core was in use, and log.
+
 } /// runCoreProcesses
 
 int printProcessOutput(std::vector<Process*>& processes, std::mutex& mutex)
