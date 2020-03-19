@@ -110,17 +110,18 @@ int main(int argc, char **argv)
             	    shared_data->ready_queue.push_back( processes[i] );
             	}
             	all_terminated = false;
-            	// sort the ready queue (if needed - based on scheduling algorithm)
-        	if( shared_data->algorithm == ScheduleAlgorithm::SJF )
-        	{ 
-        	    shared_data->ready_queue.sort( SjfComparator() );
-        	}
-        	if( shared_data->algorithm == ScheduleAlgorithm::PP )
-        	{ 
-        	    shared_data->ready_queue.sort( PpComparator() );
-        	}
-            }
-    	}
+
+            }//
+    	}//for
+        // sort the ready queue (if needed - based on scheduling algorithm)
+        if( shared_data->algorithm == ScheduleAlgorithm::SJF )
+        { 
+       		shared_data->ready_queue.sort( SjfComparator() );
+        }
+        if( shared_data->algorithm == ScheduleAlgorithm::PP )
+        { 
+        	shared_data->ready_queue.sort( PpComparator() );
+        }
         shared_data->all_terminated = all_terminated;
         lock.unlock();
         shared_data->condition.notify_one();
@@ -130,7 +131,7 @@ int main(int argc, char **argv)
 
         // sleep 1/60th of a second
         usleep(16667);
-    } // (!(shared_data->all_terminated)
+    } // while
 
     // wait for threads to finish
     for (i = 0; i < num_cores; i++)
@@ -205,14 +206,17 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
     //     - Ready queue if time slice elapsed or process was preempted
     //  - Wait context switching time
     //  * Repeat until all processes in terminated state
-	//uint32_t burst_cpu_time;
-	//uint32_t burst_io_time;
 	uint32_t start_cpu_time;
 	uint16_t previous_burst;
+	int32_t cpu_burst_time;
+	Process *p;
 
-    while ( !(shared_data->all_terminated) )
+    	while ( !(shared_data->all_terminated) )
 	{
-		Process *p = NULL;
+		p = NULL;
+		start_cpu_time = 0;
+		previous_burst = 0;
+		cpu_burst_time = 0;
     		//  - Get process at front of ready queue
 		if( p == NULL && !(shared_data->all_terminated) )
 		{
@@ -223,11 +227,12 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
                 		shared_data->ready_queue.pop_front();
                 		p->setCpuCore(core_id);
                 		p->setState( Process::State::Running, currentTime() );
-                		p->updateProcess( currentTime() );
 
-
-				start_cpu_time = currentTime();
+				//This is causing some variations how cpus run.
                			previous_burst = p->getCurrentBurst();
+				cpu_burst_time = p->getIOBurstTime();
+                		p->updateProcess( currentTime() );
+				start_cpu_time = currentTime();
 
                 		lock.unlock();
                 		shared_data->condition.notify_one();
@@ -248,14 +253,14 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
                 		}
                 		else if( shared_data->algorithm == ScheduleAlgorithm::PP )
                 		{
-                		    std::unique_lock<std::mutex> lock(shared_data->mutex);
-                		    while( currentTime()  < start_cpu_time + p->getIOBurstTime()  );
-                		    lock.unlock();
+                		    std::unique_lock<std::mutex> lock3(shared_data->mutex);
+                		    while( currentTime()  < start_cpu_time + cpu_burst_time  );
+                		    lock3.unlock();
                 		    shared_data->condition.notify_one();
                 		}
                 		else
                 		{
-                    			while( currentTime()  < start_cpu_time + p->getIOBurstTime() );
+                    			while( currentTime()  < start_cpu_time + cpu_burst_time );
                 		}
 			}
 		}//running
@@ -268,7 +273,6 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
 			std::unique_lock<std::mutex> lock2(shared_data->mutex);
 			p->setCpuCore(-1);
 			p->updateProcess( currentTime() );
-
 
         		//  - I/O queue if CPU burst finished (and process not finished) it doesnt work..here.
 			if( previous_burst < p->getCurrentBurst() && p->getRemainingTime() > 0 )

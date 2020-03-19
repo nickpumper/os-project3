@@ -91,7 +91,7 @@ int32_t Process::getIOBurstTime() const
 }
 int32_t Process::getCPUBurstTime() const
 {
-	return burst_times[current_burst+1];
+	return burst_times[current_burst];
 }
 uint16_t Process::getNumBurst() const
 {
@@ -103,7 +103,7 @@ void Process::setState(State new_state, uint32_t current_time)
     if (state == State::NotStarted && new_state == State::Ready)
     {
         launch_time = current_time;
-	    previous_time = launch_time;
+	previous_time = launch_time;
     }
 
     state = new_state;
