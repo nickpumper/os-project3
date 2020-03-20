@@ -174,6 +174,7 @@ int main(int argc, char **argv)
         Process * process = processes.back();
         processes.pop_back();
 
+        cpuTimeSum = cpuTimeSum + process->getCpuTime();
         waitSum = waitSum + process->getWaitTime();
         turnaroundSum = turnaroundSum + process->getTurnaroundTime();
 
@@ -190,7 +191,6 @@ int main(int argc, char **argv)
     double first_half_processes = 0;
     double second_half_processes = 0;
     while (!turnaround_times.empty()) {
-
         double turn_time = turnaround_times.back();
         turnaround_times.pop_back();
         //std::cout<< "DEBUGGING: turn around time for process " << i << " is " << turn_time << std::endl;
@@ -208,18 +208,17 @@ int main(int argc, char **argv)
             }
             second_half_processes++;
         } // else
+        
         i++;
     } // while
     
     avg_throughput_first_half = first_half_processes / max_turn_time_first_half;
     avg_throughput_second_half = second_half_processes / max_turn_time_last_half;
+    int cores = num_cores; // so can print it
 
     // now print.
     std::cout<< "\n------ SIMULATION COMPLETE -----\n\nSimulation Statistics:\n";
-    //std::cout<<"DEBUG: Time taken is: " << time_taken << std::endl;
-    //std::cout<<"DEBUG: max time first half of processes is " << max_turn_time_first_half << " with this many processes: "<< first_half_processes << std::endl;
-    // std::cout<< "DEBUG: and for the last half: " << max_turn_time_last_half << " with this many processes: "<< second_half_processes << std::endl;
-    std::cout<<"CPU Utilization: " << cpuUtilization <<"\n";
+    std::cout<<"CPU Utilization: " << cpuUtilization << "% with " << cores << " cores.\n";
     std::cout<<"Throughput Averages:\n";
     std::cout<<"\tAverage for first 50% of processes finished: " << avg_throughput_first_half << "\n";
     std::cout<<"\tAverage for second 50% of processes finished: " << avg_throughput_second_half << "\n";
