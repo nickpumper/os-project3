@@ -266,6 +266,7 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
             std::unique_lock<std::mutex> lock(shared_data->mutex);
 			if( !shared_data->ready_queue.empty() )
 			{
+                
                 p = shared_data->ready_queue.front();
                 shared_data->ready_queue.pop_front();
                 p->setCpuCore(core_id);
@@ -276,11 +277,9 @@ void coreRunProcesses(uint8_t core_id, SchedulerData *shared_data)
 
                 		p->updateProcess( currentTime() );
 				start_cpu_time = currentTime();
-
-                
-                shared_data->condition.notify_one();
 			}
             lock.unlock();
+            shared_data->condition.notify_one();
 		} // if( p == NULL && !(shared_data->all_terminated)
 
         //  - Simulate the processes running until one of the following:
